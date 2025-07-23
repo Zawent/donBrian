@@ -1,4 +1,6 @@
 import inquirer from 'inquirer';
+import _ from 'lodash';
+import { guardarTareas } from '../utils/archivos.js';
 import { tareas } from '../data/tareas.js';
 
 export async function agregarTarea() {
@@ -6,31 +8,52 @@ export async function agregarTarea() {
     { type: 'input', name: 'descripcion', message: 'Descripción de la tarea:' }
   ]);
 
+  const desc = descripcion.trim();
+
+  // Validaciones
+  if (_.isEmpty(desc)) {
+    console.log('⚠️ No puedes ingresar una tarea vacía.');
+    return;
+  }
+
+  const duplicada = _.some(tareas, t => t.descripcion.toLowerCase() === desc.toLowerCase());
+  if (duplicada) {
+    console.log('⚠️ Ya existe una tarea con esa descripción.');
+    return;
+  }
+
   const nueva = {
     id: Date.now(),
-    descripcion: descripcion.trim(),
+    descripcion: desc,
     completada: false
   };
 
   tareas.push(nueva);
-  console.log('✅ Tarea agregada.');
+  guardarTareas(tareas);
+  console.log('✅ Tarea agregada y guardada.');
 }
 
 export function listarTareas() {
-  if (tareas.length === 0) {
+  if (_.isEmpty(tareas)) {
     console.log('📭 No hay tareas registradas.');
     return;
   }
 
+  // Ordenar por estado (pendientes primero) y luego por descripción
+  const ordenadas = _.orderBy(tareas, ['completada', 'descripcion'], ['asc', 'asc']);
+
   console.log('\n📋 Lista de tareas:');
-  tareas.forEach((tarea, i) => {
+  ordenadas.forEach((tarea, i) => {
     const estado = tarea.completada ? '✅' : '❌';
     console.log(`${i + 1}. [${estado}] ${tarea.descripcion}`);
   });
 }
 
 export async function editarTarea() {
-  if (tareas.length === 0) return console.log('⚠️ No hay tareas para editar.');
+  if (_.isEmpty(tareas)) {
+    console.log('⚠️ No hay tareas para editar.');
+    return;
+  }
 
   const { indice } = await inquirer.prompt([
     {
@@ -48,12 +71,22 @@ export async function editarTarea() {
     { type: 'input', name: 'nuevaDescripcion', message: 'Nueva descripción:' }
   ]);
 
-  tareas[indice].descripcion = nuevaDescripcion.trim();
-  console.log('✏️ Tarea actualizada.');
+  const nueva = nuevaDescripcion.trim();
+  if (_.isEmpty(nueva)) {
+    console.log('⚠️ La descripción no puede estar vacía.');
+    return;
+  }
+
+  tareas[indice].descripcion = nueva;
+  guardarTareas(tareas);
+  console.log('✏️ Tarea actualizada y guardada.');
 }
 
 export async function eliminarTarea() {
-  if (tareas.length === 0) return console.log('⚠️ No hay tareas para eliminar.');
+  if (_.isEmpty(tareas)) {
+    console.log('⚠️ No hay tareas para eliminar.');
+    return;
+  }
 
   const { indice } = await inquirer.prompt([
     {
@@ -67,6 +100,21 @@ export async function eliminarTarea() {
     }
   ]);
 
+  const { confirmar } = await inquirer.prompt([
+    {
+      type: 'confirm',
+      name: 'confirmar',
+      message: '¿Estás seguro de eliminar esta tarea?',
+      default: false
+    }
+  ]);
+
+  if (!confirmar) {
+    console.log('❎ Cancelado.');
+    return;
+  }
+
   tareas.splice(indice, 1);
-  console.log('🗑️ Tarea eliminada.');
+  guardarTareas(tareas);
+  console.log('🗑️ Tarea eliminada y cambios guardados.');
 }

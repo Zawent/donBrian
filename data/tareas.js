@@ -1,2 +1,2 @@
-import { cargarTareas } from '../utils/archivo.js';
+import { cargarTareas } from '../utils/archivos.js';
 export const tareas = cargarTareas();
